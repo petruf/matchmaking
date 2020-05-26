@@ -4,7 +4,6 @@ channels:
   - anaconda
 dependencies:
   - scipy
-  - scikit-learn
   - pip
   - google-api-python-client
   - google-auth-httplib2
@@ -12,6 +11,7 @@ dependencies:
   - spyder-kernels
   - numpy
   - pandas
+  - openpyxl
   - pyyaml
   - spacy
   - pip:

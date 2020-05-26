@@ -7,7 +7,6 @@ import spacy
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import pdist, squareform
 import itertools
-from sklearn.neighbors import DistanceMetric
 from activities.gdocs_open import get_spreadsheet_data
 
 with open('config/config.yml') as f:
@@ -15,6 +14,7 @@ with open('config/config.yml') as f:
 
 nlp = spacy.load('en_core_web_md')
     
+
 def get_text_distance(text1_np, text2_np):
     text1_spacy = nlp(text1_np[0])
     text2_spacy = nlp(text2_np[0])
@@ -51,12 +51,14 @@ def assign_limit_weights(data_df, matrix, gender_column_name):
     return matrix
 
 
-data = get_spreadsheet_data(config['spreadsheet_id'], config['sheet_name'])
-data_df = format_spreadsheet_data(data)
-similarity_matrix_answers = get_answers_similarity_matrix(data_df, 6)
-similarity_matrix_profile = get_profile_similarity_matrix(data_df, 'V angličtině krátce popište svého ideálního partnera (3 věty)')
-similarity_matrix = similarity_matrix_answers - similarity_matrix_profile
-similarity_matrix_final = assign_limit_weights(data_df, similarity_matrix, 'Pohlaví')
-
-row_ind, col_ind = linear_sum_assignment(similarity_matrix)
-data_df['Match'] = data_df['Jméno'].iloc[col_ind].reset_index(drop=True)
+if __name__ == '__main__':
+    data = get_spreadsheet_data(config['spreadsheet_id'], config['sheet_name'])
+    data_df = format_spreadsheet_data(data)
+    similarity_matrix_answers = get_answers_similarity_matrix(data_df, 6)
+    similarity_matrix_profile = get_profile_similarity_matrix(data_df, 'V angličtině krátce popište svého ideálního partnera (3 věty)')
+    similarity_matrix = similarity_matrix_answers - similarity_matrix_profile
+    similarity_matrix_final = assign_limit_weights(data_df, similarity_matrix, 'Pohlaví')
+    
+    row_ind, col_ind = linear_sum_assignment(similarity_matrix)
+    data_df['Match'] = data_df['Jméno'].iloc[col_ind].reset_index(drop=True)
+    data_df.to_excel('matchmaking.xlsx')
