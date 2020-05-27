@@ -58,6 +58,7 @@ if __name__ == '__main__':
     data = get_spreadsheet_data(config['spreadsheet_id'], config['sheet_name'])
     data_df = format_spreadsheet_data(data)
     resp_no = len(data_df)
+    square_const = int(resp_no * (resp_no - 1) /2)
     
     similarity_matrix_answers = get_answers_similarity_matrix(data_df, config['starting_question'])
     similarity_matrix_profile = np.zeros((resp_no, resp_no))
@@ -69,14 +70,15 @@ if __name__ == '__main__':
     similarity_matrix_final = assign_limit_weights(data_df, np.copy(similarity_matrix), config['gender_column_name'])
     
     # optimization of matched pairs
-    similarity_matrix_final_noise = similarity_matrix_final + np.random.normal(loc=0, scale=0.001, size=(resp_no, resp_no))
+    similarity_matrix_final_noise = similarity_matrix_final + squareform(np.random.normal(loc=0, scale=0.001, size=square_const))
     row_ind, col_ind = linear_sum_assignment(similarity_matrix_final_noise)
-    data_df['Match'] = data_df['Email Address'].iloc[col_ind].reset_index(drop=True)
+    data_df['Match'] = data_df[config['name_column_name']].iloc[col_ind].reset_index(drop=True)
+    data_df['Match_id'] = col_ind
     
     # clustering of pre-finalized similarity matrix
     Z = ward(squareform(similarity_matrix_answers))
     clusters_unbalanced = fcluster(Z, t=2, criterion='maxclust')
-    clusters_balanced = eqsc(similarity_matrix, G=2)
+    clusters_balanced = eqsc(similarity_matrix, K=2)
     data_df['clusters_unbalanced'] = clusters_unbalanced
     data_df['clusters_balanced'] = clusters_balanced
     
