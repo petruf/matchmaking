@@ -54,6 +54,15 @@ def assign_limit_weights(data_df, matrix, gender_column_name):
     return matrix
 
 
+def get_matches_from_matrix(matrix, data_frame, column_suffix, name_column_name, match_column_name='Match', match_id_column_name='Match_id'):
+    match_column_name = match_column_name + ('_' + column_suffix if column_suffix else '')
+    match_id_column_name = match_id_column_name + ('_' + column_suffix if column_suffix else '')
+    row_ind, col_ind = linear_sum_assignment(matrix)
+    data_frame[match_column_name] = data_frame[name_column_name].iloc[col_ind].reset_index(drop=True)
+    data_frame[match_id_column_name] = col_ind
+    return
+    
+    
 if __name__ == '__main__':
     data = get_spreadsheet_data(config['spreadsheet_id'], config['sheet_name'])
     data_df = format_spreadsheet_data(data)
@@ -71,9 +80,12 @@ if __name__ == '__main__':
     
     # optimization of matched pairs
     similarity_matrix_final_noise = similarity_matrix_final + squareform(np.random.normal(loc=0, scale=0.001, size=square_const))
-    row_ind, col_ind = linear_sum_assignment(similarity_matrix_final_noise)
-    data_df['Match'] = data_df[config['name_column_name']].iloc[col_ind].reset_index(drop=True)
-    data_df['Match_id'] = col_ind
+    get_matches_from_matrix(matrix=similarity_matrix_final_noise, data_frame=data_df, column_suffix=None, name_column_name=config['name_column_name'])
+    
+    similarity_matrix_answers_final = assign_limit_weights(data_df, np.copy(similarity_matrix_answers), config['gender_column_name'])
+    similarity_matrix_answers_final_noise = similarity_matrix_answers_final + squareform(np.random.normal(loc=0, scale=0.001, size=square_const))
+    get_matches_from_matrix(matrix=similarity_matrix_answers_final_noise, data_frame=data_df, 
+                            column_suffix='_answers_only', name_column_name=config['name_column_name'])
     
     # clustering of pre-finalized similarity matrix
     Z = ward(squareform(similarity_matrix_answers))
