@@ -1,10 +1,9 @@
 # spreadsheet_id: '1XxE5LAslHTVLz0h7ISrnpXrfn_uyjydGh8iIo9Uf7Dc'
-spreadsheet_id: '1jB-UbFCi_nt6kvQoeMY8Lcwy9hk9XRKkVB4o9LZzdNk'
+spreadsheet_id: '1ufSQmtl7oXazcEhqoTrnYSENmCFolAUCN49YHGY4vQM'
 sheet_name: 'Form responses 1'
-starting_question: 7
+starting_question: 5
 gender_column_name: 'Gender'
 name_column_name: 'Name'
 nlp_analyzed_columns:
   - 'For what in your life do you feel most grateful?'
   - 'What do you value most in a friendship?'
-  - 'Describe yourselves you would in a tinder profile'

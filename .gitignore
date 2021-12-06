@@ -132,3 +132,7 @@ dmypy.json
 token.pickle
 credentials.json
 *.xlsx
+
+# rendered pictures
+*.png
+*.jpg

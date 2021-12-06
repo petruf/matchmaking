@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import yaml
+from ruamel import yaml
 import pandas as pd
 import numpy as np
 import spacy
@@ -12,10 +12,10 @@ from activities.gdocs_open import get_spreadsheet_data
 from activities.clustering import eqsc
 
 
-with open('config/config.yml') as f:
+with open("config/config.yml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
-nlp = spacy.load('en_core_web_md')
+nlp = spacy.load("en_core_web_md")
 
 
 def get_text_distance(text1_np, text2_np):
@@ -29,19 +29,19 @@ def format_spreadsheet_data(data_list):
     data_header = data_list[0]
     data_df = pd.DataFrame(data_responses)
     data_df.columns = data_header
-    data_df.dropna(how='all', inplace=True)
+    data_df.dropna(how="all", inplace=True)
     data_df.reset_index(inplace=True, drop=True)
     return data_df
 
 
 def get_profile_similarity_matrix(data_df, profile_column_name):
-    texts_np = data_df[profile_column_name].to_numpy().reshape(-1,1)
+    texts_np = data_df[profile_column_name].to_numpy().reshape(-1, 1)
     return squareform(pdist(texts_np, get_text_distance))
 
 
 def get_answers_similarity_matrix(data_df, answers_loc):
     data_answers_only_np = data_df.iloc[:, answers_loc:].to_numpy()
-    return squareform(pdist(data_answers_only_np, 'euclidean'))
+    return squareform(pdist(data_answers_only_np, "euclidean"))
 
 
 def assign_limit_weights(data_df, matrix, gender_column_name):
@@ -54,52 +54,88 @@ def assign_limit_weights(data_df, matrix, gender_column_name):
     return matrix
 
 
-def get_matches_from_matrix(matrix, data_frame, column_suffix, name_column_name, match_column_name='Match', match_id_column_name='Match_id'):
-    match_column_name = match_column_name + ('_' + column_suffix if column_suffix else '')
-    match_id_column_name = match_id_column_name + ('_' + column_suffix if column_suffix else '')
+def get_matches_from_matrix(
+    matrix,
+    data_frame,
+    column_suffix,
+    name_column_name,
+    match_column_name="Match",
+    match_id_column_name="Match_id",
+):
+    match_column_name = match_column_name + (
+        "_" + column_suffix if column_suffix else ""
+    )
+    match_id_column_name = match_id_column_name + (
+        "_" + column_suffix if column_suffix else ""
+    )
     row_ind, col_ind = linear_sum_assignment(matrix)
-    data_frame[match_column_name] = data_frame[name_column_name].iloc[col_ind].reset_index(drop=True)
+    data_frame[match_column_name] = (
+        data_frame[name_column_name].iloc[col_ind].reset_index(drop=True)
+    )
     data_frame[match_id_column_name] = col_ind
     return
-    
-    
-if __name__ == '__main__':
-    data = get_spreadsheet_data(config['spreadsheet_id'], config['sheet_name'])
+
+
+if __name__ == "__main__":
+    data = get_spreadsheet_data(config["spreadsheet_id"], config["sheet_name"])
     data_df = format_spreadsheet_data(data)
     resp_no = len(data_df)
-    square_const = int(resp_no * (resp_no - 1) /2)
-    
-    similarity_matrix_answers = get_answers_similarity_matrix(data_df, config['starting_question'])
+    square_const = int(resp_no * (resp_no - 1) / 2)
+
+    similarity_matrix_answers = get_answers_similarity_matrix(
+        data_df, config["starting_question"]
+    )
     similarity_matrix_profile = np.zeros((resp_no, resp_no))
-    for i in config['nlp_analyzed_columns']:
+    for i in config["nlp_analyzed_columns"]:
         similarity_matrix_profile_columns = get_profile_similarity_matrix(data_df, i)
         similarity_matrix_profile -= similarity_matrix_profile_columns
-    
+
     similarity_matrix = similarity_matrix_answers + similarity_matrix_profile
-    similarity_matrix_final = assign_limit_weights(data_df, np.copy(similarity_matrix), config['gender_column_name'])
-    
+    similarity_matrix_final = assign_limit_weights(
+        data_df, np.copy(similarity_matrix), config["gender_column_name"]
+    )
+
     # optimization of matched pairs
-    similarity_matrix_final_noise = similarity_matrix_final + squareform(np.random.normal(loc=0, scale=0.001, size=square_const))
-    get_matches_from_matrix(matrix=similarity_matrix_final_noise, data_frame=data_df, column_suffix=None, name_column_name=config['name_column_name'])
-    
-    similarity_matrix_answers_final = assign_limit_weights(data_df, np.copy(similarity_matrix_answers), config['gender_column_name'])
-    similarity_matrix_answers_final_noise = similarity_matrix_answers_final + squareform(np.random.normal(loc=0, scale=0.001, size=square_const))
-    get_matches_from_matrix(matrix=similarity_matrix_answers_final_noise, data_frame=data_df, 
-                            column_suffix='_answers_only', name_column_name=config['name_column_name'])
-    
+    similarity_matrix_final_noise = similarity_matrix_final + squareform(
+        np.random.normal(loc=0, scale=0.001, size=square_const)
+    )
+    get_matches_from_matrix(
+        matrix=similarity_matrix_final_noise,
+        data_frame=data_df,
+        column_suffix=None,
+        name_column_name=config["name_column_name"],
+    )
+
+    similarity_matrix_answers_final = assign_limit_weights(
+        data_df, np.copy(similarity_matrix_answers), config["gender_column_name"]
+    )
+    similarity_matrix_answers_final_noise = (
+        similarity_matrix_answers_final
+        + squareform(np.random.normal(loc=0, scale=0.001, size=square_const))
+    )
+    get_matches_from_matrix(
+        matrix=similarity_matrix_answers_final_noise,
+        data_frame=data_df,
+        column_suffix="_answers_only",
+        name_column_name=config["name_column_name"],
+    )
+
     # clustering of pre-finalized similarity matrix
     Z = ward(squareform(similarity_matrix_answers))
-    clusters_unbalanced = fcluster(Z, t=2, criterion='maxclust')
+    clusters_unbalanced = fcluster(Z, t=2, criterion="maxclust")
     clusters_balanced = eqsc(similarity_matrix, K=2)
-    data_df['clusters_unbalanced'] = clusters_unbalanced
-    data_df['clusters_balanced'] = clusters_balanced
-    
+    data_df["clusters_unbalanced"] = clusters_unbalanced
+    data_df["clusters_balanced"] = clusters_balanced
+
     # saving to excel spreadsheet
-    writer = pd.ExcelWriter('matchmaking.xlsx')
-    data_df.to_excel(writer, sheet_name='matchmaking_results')
-    pd.DataFrame(similarity_matrix_answers).to_excel(writer, sheet_name='answers_matrix')
-    pd.DataFrame(similarity_matrix_profile).to_excel(writer, sheet_name='profile_matrix')
-    pd.DataFrame(similarity_matrix).to_excel(writer, sheet_name='unadjusted_matrix')
-    pd.DataFrame(similarity_matrix_final).to_excel(writer, sheet_name='final_matrix')
+    writer = pd.ExcelWriter("matchmaking.xlsx")
+    data_df.to_excel(writer, sheet_name="matchmaking_results")
+    pd.DataFrame(similarity_matrix_answers).to_excel(
+        writer, sheet_name="answers_matrix"
+    )
+    pd.DataFrame(similarity_matrix_profile).to_excel(
+        writer, sheet_name="profile_matrix"
+    )
+    pd.DataFrame(similarity_matrix).to_excel(writer, sheet_name="unadjusted_matrix")
+    pd.DataFrame(similarity_matrix_final).to_excel(writer, sheet_name="final_matrix")
     writer.save()
-    
